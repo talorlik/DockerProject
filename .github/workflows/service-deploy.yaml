@@ -18,18 +18,27 @@ jobs:
       - name: Build and push image
         run: |
           cd polybot
-          
-          # Login to ECR (commend in in case you use ECR, change region code and ECR URI):
-          # export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-          # export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          # aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin 352708296901.dkr.ecr.eu-central-1.amazonaws.com
-          
-          # Login to DockerHub (comment out if you don't use DockerHub):         
-          docker login -u ${{ secrets.DOCKER_REPO_USERNAME }} -p ${{ secrets.DOCKER_REPO_PASSWORD }}
 
-          IMAGE_NAME=polybot:${{ github.run_number }}
-          docker build -t $IMAGE_NAME .
-          docker push $IMAGE_NAME
+          # Login to ECR (commend in in case you use ECR, change region code and ECR URI):
+          export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 019273956931.dkr.ecr.us-east-1.amazonaws.com
+
+          # Login to DockerHub (comment out if you don't use DockerHub):
+          # docker login -u ${{ secrets.DOCKER_REPO_USERNAME }} -p ${{ secrets.DOCKER_REPO_PASSWORD }}
+
+          # Define the base name of the image and the tag separately
+          IMAGE_BASE_NAME=polybot
+          IMAGE_TAG=${{ github.run_number }}
+
+          # Build the image
+          docker build -t ${IMAGE_BASE_NAME}:${IMAGE_TAG} .
+
+          # Tag the image for ECR
+          docker tag ${IMAGE_BASE_NAME}:${IMAGE_TAG} 019273956931.dkr.ecr.us-east-1.amazonaws.com/talo-docker-images:${IMAGE_BASE_NAME}-${IMAGE_TAG}
+
+          # Push the image to ECR
+          docker push 019273956931.dkr.ecr.us-east-1.amazonaws.com/talo-docker-images:${IMAGE_BASE_NAME}-${IMAGE_TAG}
 
   Yolo5Build:
     runs-on: ubuntu-latest
@@ -40,16 +49,25 @@ jobs:
       - name: Build and push image
         run: |
           cd yolo5
-          
-          # export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-          # export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          # aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin 352708296901.dkr.ecr.eu-central-1.amazonaws.com
-               
-          docker login -u ${{ secrets.DOCKER_REPO_USERNAME }} -p ${{ secrets.DOCKER_REPO_PASSWORD }}
 
-          IMAGE_NAME=yolo5:${{ github.run_number }}
-          docker build -t $IMAGE_NAME .
-          docker push $IMAGE_NAME
+          export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 019273956931.dkr.ecr.us-east-1.amazonaws.com
+
+          # docker login -u ${{ secrets.DOCKER_REPO_USERNAME }} -p ${{ secrets.DOCKER_REPO_PASSWORD }}
+
+          # Define the base name of the image and the tag separately
+          IMAGE_BASE_NAME=yolo5
+          IMAGE_TAG=${{ github.run_number }}
+
+          # Build the image
+          docker build -t ${IMAGE_BASE_NAME}:${IMAGE_TAG} .
+
+          # Tag the image for ECR
+          docker tag ${IMAGE_BASE_NAME}:${IMAGE_TAG} 019273956931.dkr.ecr.us-east-1.amazonaws.com/talo-docker-images:${IMAGE_BASE_NAME}-${IMAGE_TAG}
+
+          # Push the image to ECR
+          docker push 019273956931.dkr.ecr.us-east-1.amazonaws.com/talo-docker-images:${IMAGE_BASE_NAME}-${IMAGE_TAG}
 
   Deploy:
     name: Deploy Docker compose project
@@ -68,7 +86,9 @@ jobs:
           host: ${{ env.EC2_PUBLIC_IP }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          source: docker-compose.yaml
+          source: |
+            docker-compose.yaml
+            start-ngrok.sh
           target: PolybotService/
 
       - name: Update the Docker Compose project in the EC2
@@ -78,27 +98,40 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
-            # You deployment script here...
-            
-            sudo apt update && sudo apt install jq -y
-            
+            sudo apt-get update && sudo apt-get install jq -y
+
             cd PolybotService/
-            
+
+            chmod +x start-ngrok.sh
+
             # Save telegram bot token in a secret file, to be used in docker-compose.yaml
             echo "${{ secrets.TELEGRAM_BOT_TOKEN }}" > telegram_bot_token.secret
-            
-            # Get the ngrok current domain (you should assume ngrok is already running in the EC2)
-            NGROK_DOMAIN=$(curl -s localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url')
-            
+
+            # Save mongoDB in a secret file, to be used in docker-compose.yaml
+            echo "${{ secrets.MONGO_DB_PASSWORD }}" > mongo_db_password.secret
+
             # Generate .env file
             echo """
-            POLYBOT_IMG_NAME=polybot:${{ github.run_number }}
-            YOLO5_IMG_NAME=yolo5:${{ github.run_number }}
-            TELEGRAM_APP_URL=$NGROK_DOMAIN
+            AWS_PROFILE=
+            POLYBOT_IMG_NAME=019273956931.dkr.ecr.us-east-1.amazonaws.com/talo-docker-images:polybot-\${{ github.run_number }}
+            POLYBOT_NAME=polybot
+            POLYBOT_PORT=8443
+            YOLO5_IMG_NAME=019273956931.dkr.ecr.us-east-1.amazonaws.com/talo-docker-images:yolo5-\${{ github.run_number }}
+            YOLO5_NAME=yolo5
+            YOLO5_PORT=8081
+            MONGO_IMG_NAME=mongo:5
+            TELEGRAM_APP_URL=https://immense-assuring-ghoul.ngrok-free.app
+            BUCKET_NAME=talo-s3
+            BUCKET_PREFIX=images
             """ > .env
-            
+
+            # Stop ngrok processes
+            killall ngrok
+
             # Take the service down
             docker compose down
-            
+
             # Take it up with the current updated values
             docker compose up -d
+
+            ./start-ngrok.sh
