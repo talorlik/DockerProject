@@ -2,10 +2,12 @@
 
 ## Background and goals
 
+
+
 In the [previous Python project][PolybotServicePython], you developed a chatbot application which applies filters to images sent by users to a Telegram bot.
 
 In this project, you extend the service to detect objects in images, and send the results to clients.
-You'll design, develop and deploy a service consisted by multiple containerized microservices, as follows: 
+You'll design, develop and deploy a service consisted by multiple containerized microservices, as follows:
 
 - `polybot`: Telegram Bot app.
 - `yolo5`: Image object detection container based on the Yolo5 pre-train deep learning model.
@@ -14,9 +16,9 @@ You'll design, develop and deploy a service consisted by multiple containerized 
 ## Preliminaries
 
 
-1. Fork this repo (read [here][fork_github] how). 
-2. Clone your forked repository into a new PyCharm project (read [here][clone_pycharm] how).   
-3. It is a good practice to create an isolated Python virtual environment specifically for your project. 
+1. Fork this repo (read [here][fork_github] how).
+2. Clone your forked repository into a new PyCharm project (read [here][clone_pycharm] how).
+3. It is a good practice to create an isolated Python virtual environment specifically for your project.
    [Configure a new Python virtual environment in PyCharm](https://www.jetbrains.com/help/pycharm/creating-virtual-environment.html).
 
 Later on, you are encouraged to change the `README.md` file content to provide relevant information about your service project, e.g. how to launch the app, main features, etc.
@@ -32,7 +34,7 @@ MongoDB is a [document](https://www.mongodb.com/document-databases), [NoSQL](htt
 A **replica set** is a group of MongoDB servers, called nodes, containing an identical copy of the data.
 If one of the servers fails, the other two will pick up the load while the crashed one restarts, without any data loss.
 
-Follow the official docs to deploy containerized MongoDB cluster on your local machine. 
+Follow the official docs to deploy containerized MongoDB cluster on your local machine.
 Please note that the mongo deployment should be configured **to persist the data that was stored in it**.
 
 https://www.mongodb.com/compatibility/deploying-a-mongodb-cluster-with-docker
@@ -42,7 +44,7 @@ Got HA mongo deployment? great, let's move on...
 ### The `yolo5` microservice
 
 [YoloV5](https://github.com/ultralytics/yolov5) is a state-of-the-art object detection AI model. It is known for its high accuracy object detection in images and videos.
-You'll work with a lightweight model that can detect [80 objects](https://github.com/ultralytics/yolov5/blob/master/data/coco128.yaml) while it's running on your old, poor, CPU machine. 
+You'll work with a lightweight model that can detect [80 objects](https://github.com/ultralytics/yolov5/blob/master/data/coco128.yaml) while it's running on your old, poor, CPU machine.
 
 The service files can be found under the `yolo5` directory.
 The `yolo5/app.py` file is a Flask-based webserver, with an endpoint `/predict`, which can be used to predict objects in a given image, as follows:
@@ -51,14 +53,14 @@ The `yolo5/app.py` file is a Flask-based webserver, with an endpoint `/predict`,
 localhost:8081/predict?imgName=street.jpeg
 ```
 
-The `imgName` query parameter value (`street.jpeg` in the above example) represents an image name stored in an **S3 bucket**. 
-The `yolo5` service then downloads the image from the S3 bucket and detects objects in it. 
+The `imgName` query parameter value (`street.jpeg` in the above example) represents an image name stored in an **S3 bucket**.
+The `yolo5` service then downloads the image from the S3 bucket and detects objects in it.
 
 Take a look on the code, and complete the `# TODO`s. Feel free to change/add any functionality as you wish!
 
 > [!NOTE]
-> If you attempt to run the `yolo5` service locally, not as a Docker container, you'll encounter errors since the app depends on many files that don't exist on your local machine, but do exist in the [`ultralytics/yolov5`](https://hub.docker.com/r/ultralytics/yolov5) Docker image.  
-> Thus, it's recommended first to containerize the app then run it as a container. [Read here](https://github.com/ultralytics/yolov5) if you still want to work hard and run it uncontainerized. 
+> If you attempt to run the `yolo5` service locally, not as a Docker container, you'll encounter errors since the app depends on many files that don't exist on your local machine, but do exist in the [`ultralytics/yolov5`](https://hub.docker.com/r/ultralytics/yolov5) Docker image.
+> Thus, it's recommended first to containerize the app then run it as a container. [Read here](https://github.com/ultralytics/yolov5) if you still want to work hard and run it uncontainerized.
 
 
 To containerize the app, take a look at the provided `Dockerfile`, it's already implemented for you, no need to touch.
@@ -138,7 +140,7 @@ Now let's integrate the `polybot` microservice with the `yolo5`. The integration
 
 1. Clients send images to the Telegram bot.
 2. The `polybot` microservice receives the message, downloads the image to the local file system, and uploads it to an S3 bucket.
-3. The `polybot` microservice then initiates an HTTP request to the `yolo5` microservice, and waits for the response. 
+3. The `polybot` microservice then initiates an HTTP request to the `yolo5` microservice, and waits for the response.
 4. Once the response arrived, the `polybot` microservice parse the returned JSON and sends the results to the client, in any form you like.
 
 Here is an end-to-end example of how it may look like:
@@ -150,13 +152,13 @@ To get some guidance on how to implement the code, take a look at the `# TODO`s 
 
 ## Deploy the service in an EC2 instance as a Docker Compose project
 
-To simplify the deployment process, we'll create a Docker Compose project in the `docker-compose.yaml` file. 
+To simplify the deployment process, we'll create a Docker Compose project in the `docker-compose.yaml` file.
 This file will enable you to launch all 3 microservices with a single command: `docker compose up`.
 
 To ensure flexibility and avoid manual editing of the `docker-compose.yaml` file each time you build new version of your images,
-we'll specify the values that change frequently as environment variables for the Docker Compose project via a `.env` file. 
+we'll specify the values that change frequently as environment variables for the Docker Compose project via a `.env` file.
 
-[An `.env` file in Docker Compose](https://docs.docker.com/compose/environment-variables/set-environment-variables/) is a text file used to define environment variables that available when running `docker compose up`. 
+[An `.env` file in Docker Compose](https://docs.docker.com/compose/environment-variables/set-environment-variables/) is a text file used to define environment variables that available when running `docker compose up`.
 
 Here's an example of how your `.env` file should look:
 
@@ -185,9 +187,9 @@ Finally, deploy the compose project in a single `medium` Ubuntu EC2 instance wit
 #### Deployment notes
 
 - You can expose the polybot to Telegram servers using Ngrok, as done in the previous project (install and launch ngrok on the EC2 instance).
-- Don't configure your compose file to build the images. Instead, push the `yolo5` and `polybot` images to a public DockerHub or [ECR](https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-console.html) repo and use these images. 
-- Attach an IAM role to your EC2 instance with the relevant permissions (E.g. read/write access to S3). Don't manage AWS credentials yourself, and never hard-code AWS credentials in the `docker-compose.yaml` file. 
-- Don't hard-code your telegram token in the compose file, this is a sensitive data. [Read here](https://docs.docker.com/compose/use-secrets/) how to do it properly.  
+- Don't configure your compose file to build the images. Instead, push the `yolo5` and `polybot` images to a public DockerHub or [ECR](https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-console.html) repo and use these images.
+- Attach an IAM role to your EC2 instance with the relevant permissions (E.g. read/write access to S3). Don't manage AWS credentials yourself, and never hard-code AWS credentials in the `docker-compose.yaml` file.
+- Don't hard-code your telegram token in the compose file, this is a sensitive data. [Read here](https://docs.docker.com/compose/use-secrets/) how to do it properly.
 - Build a robust code. Implement **retry** and **timeout** mechanism when needed, handle error properly. Test your app under failure - does the polybot keep work even if the yolo5 is down? Is yolo5 crashing when the mongo cluster is not initialize? etc...
 - Strive to create your Docker images as small as possible.
 - Try to automate the Mongo cluster initialization, so you don't need to manually connect to the container and initialize the cluster.
@@ -195,7 +197,7 @@ Finally, deploy the compose project in a single `medium` Ubuntu EC2 instance wit
 
 ## Integrate a simple CI/CD pipeline using GitHub Actions
 
-CI/CD (Continuous integration and continuous deployment) is a methodology which automates the deployment process of software project. 
+CI/CD (Continuous integration and continuous deployment) is a methodology which automates the deployment process of software project.
 We'll spend fairly amount of time to discuss this topic. But for now we want to achieve a simple outcome:
 
 When you make changes to your code locally, commit, and push them, a new GitHub Actions **workflow** is automatically triggered.
@@ -207,7 +209,7 @@ This workflow builds new versions of Docker images and deploys them to Docker Co
 No need to manually build images, no need to manually connect to EC2 instance, or launch the Docker Compose project - everything from code changes to deployment is seamlessly done by an automatic process.
 This is why it is called **continuous deployment**, because on every code change, a new version of the app is being deployed automatically.
 
-1. First, get yourself familiar with how GitHub Actions works: https://docs.github.com/en/actions/learn-github-actions/understanding-github-actions. 
+1. First, get yourself familiar with how GitHub Actions works: https://docs.github.com/en/actions/learn-github-actions/understanding-github-actions.
 2. The GitHub Actions workflow is already written for you and available under `.github/workflows/service-deploy.yaml`. Take a moment to review it, and customize it according to your specific requirements.
 
    The workflow expects some secrets to be available:
@@ -218,11 +220,11 @@ This is why it is called **continuous deployment**, because on every code change
      - `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` - Only if you use ECR to store images.
      - `EC2_SSH_PRIVATE_KEY` - The private key value to connect to your EC2.
      - `TELEGRAM_BOT_TOKEN` - The Telegram bot token.
-4. Make some changes to your bot code, then commit and push it. Notice how the **Polybot Service Deployment** workflow automatically kicked in. Once the workflow completes successfully, your new application version should be automatically built and deployed in your EC2 instance. Make sure the service is working properly and reflects the code changes you've made. 
+4. Make some changes to your bot code, then commit and push it. Notice how the **Polybot Service Deployment** workflow automatically kicked in. Once the workflow completes successfully, your new application version should be automatically built and deployed in your EC2 instance. Make sure the service is working properly and reflects the code changes you've made.
 
 ## Submission
 
-Once the **Polybot Service Deployment** workflow is completed, the **Project auto-testing** workflow would be triggered automatically and test your project. 
+Once the **Polybot Service Deployment** workflow is completed, the **Project auto-testing** workflow would be triggered automatically and test your project.
 
 So no further step should be taken to pass the automated testing :-)
 
