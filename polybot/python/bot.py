@@ -3,10 +3,10 @@ from loguru import logger
 import os
 import time
 from telebot.types import InputFile
-from polybot.img_proc import Img
+from img_proc import Img
 import boto3
 import requests
-from polybot.bot_utils import upload_image_to_s3, download_image_from_s3, parse_result
+from bot_utils import upload_image_to_s3, download_image_from_s3, parse_result
 
 aws_profile = os.getenv("AWS_PROFILE", None)
 if aws_profile is not None and aws_profile == "dev":

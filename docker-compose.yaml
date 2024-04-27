@@ -96,6 +96,8 @@ services:
       - init_done:/init_done
     networks:
       - mongo-cluster
+    secrets:
+      - mongo_password
 
   yolo5:
     image: ${YOLO5_IMG_NAME}
@@ -119,6 +121,8 @@ services:
       "
     networks:
       - backend-network
+    secrets:
+      - mongo_password
 
   polybot:
     image: ${POLYBOT_IMG_NAME}

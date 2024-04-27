@@ -7,4 +7,6 @@ RUN curl -L https://github.com/ultralytics/yolov5/releases/download/v6.2/yolov5s
 
 COPY . .
 
+ENV PYTHONPATH="${PYTHONPATH}:/usr/src/app"
+
 CMD ["python3", "app.py"]

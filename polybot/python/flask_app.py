@@ -1,9 +1,8 @@
-import flask
-from flask import request
+from flask import Flask, request
 import os
 from bot import BotFactory
 
-app = flask.Flask(__name__)
+app = Flask(__name__, static_url_path='')
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
 TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']

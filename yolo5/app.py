@@ -6,7 +6,7 @@ import uuid
 import yaml
 from loguru import logger
 import os
-from yolo5.yolo_utils import upload_image_to_s3, download_image_from_s3, write_to_db
+from yolo_utils import upload_image_to_s3, download_image_from_s3, write_to_db
 
 images_bucket = os.environ['BUCKET_NAME']
 images_prefix = os.environ['BUCKET_PREFIX']
@@ -14,7 +14,11 @@ images_prefix = os.environ['BUCKET_PREFIX']
 with open("data/coco128.yaml", "r") as stream:
     names = yaml.safe_load(stream)['names']
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='')
+
+@app.route('/', methods=['GET'])
+def index():
+    return 'Ok'
 
 @app.route('/predict', methods=['POST'])
 def predict():
