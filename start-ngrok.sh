@@ -3,14 +3,14 @@
 readonly DOCKER_CONTAINER='polybot'
 
 wait_until_container_healthy() {
-  local max_retries=5
+  local max_retries=10
   local retries=0
 
   until [ "$(docker inspect --format '{{.State.Health.Status}}' "$DOCKER_CONTAINER")" = 'healthy' ] || [ $retries -eq $max_retries ]
   do
     local container_status="$(docker inspect --format '{{.State.Health.Status}}' "$DOCKER_CONTAINER")"
     echo "Waiting for container $DOCKER_CONTAINER to be 'healthy', current status is '$container_status'. Sleeping for 2 seconds..."
-    sleep 2
+    sleep 10
     ((retries++))
   done
 
