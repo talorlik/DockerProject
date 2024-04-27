@@ -113,10 +113,10 @@ jobs:
             # Generate .env file
             echo """
             AWS_PROFILE=
-            POLYBOT_IMG_NAME=019273956931.dkr.ecr.us-east-1.amazonaws.com/talo-docker-images:polybot-\${{ github.run_number }}
+            POLYBOT_IMG_NAME=019273956931.dkr.ecr.us-east-1.amazonaws.com/talo-docker-images:polybot-${{ github.run_number }}
             POLYBOT_NAME=polybot
             POLYBOT_PORT=8443
-            YOLO5_IMG_NAME=019273956931.dkr.ecr.us-east-1.amazonaws.com/talo-docker-images:yolo5-\${{ github.run_number }}
+            YOLO5_IMG_NAME=019273956931.dkr.ecr.us-east-1.amazonaws.com/talo-docker-images:yolo5-${{ github.run_number }}
             YOLO5_NAME=yolo5
             YOLO5_PORT=8081
             MONGO_IMG_NAME=mongo:5
