@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 import os
 from bot import BotFactory
 
@@ -10,7 +10,11 @@ TELEGRAM_APP_URL = os.environ['TELEGRAM_APP_URL']
 
 @app.route('/', methods=['GET'])
 def index():
-    return 'Ok'
+    return 'Ok', 200
+
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({"status": "healthy", "message": "Service is up and running!"}), 200
 
 @app.route(f'/{TELEGRAM_TOKEN}/', methods=['POST'])
 def webhook():

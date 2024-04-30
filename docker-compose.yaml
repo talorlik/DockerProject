@@ -97,9 +97,10 @@ services:
       BUCKET_NAME: ${BUCKET_NAME}
       BUCKET_PREFIX: ${BUCKET_PREFIX}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8443"]
-      interval: 30s
+      test: ["CMD", "curl", "-f", "http://localhost:8443/health"]
+      interval: 10s
       timeout: 10s
+      start_period: 60s
       retries: 3
     secrets:
       - telegram_token

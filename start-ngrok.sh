@@ -10,7 +10,7 @@ wait_until_container_healthy() {
   do
     local container_status="$(docker inspect --format '{{.State.Health.Status}}' "$DOCKER_CONTAINER")"
     echo "Waiting for container $DOCKER_CONTAINER to be 'healthy', current status is '$container_status'. Sleeping for 10 seconds..."
-    sleep 10
+    sleep 20
     ((retries++))
   done
 
@@ -19,6 +19,8 @@ wait_until_container_healthy() {
     exit 1
   fi
 }
+
+sleep 60
 
 wait_until_container_healthy
 
