@@ -1,7 +1,7 @@
 # Initial stage for building the application
 FROM python:alpine3.19 AS build-stage
 # Install build dependencies
-RUN apk add --no-cache build-base linux-headers musl-dev python3-dev libffi-dev gcc
+RUN apk update && apk add --no-cache build-base linux-headers musl-dev python3-dev libffi-dev gcc
 
 # Set up a virtual environment to isolate package installations
 ENV VIRTUAL_ENV=/opt/venv
@@ -17,7 +17,7 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # Build the final image without the build dependencies
 FROM python:alpine3.19
 # Install runtime libraries
-RUN apk add --no-cache libstdc++
+RUN apk update && apk add --no-cache libstdc++ curl
 # Copy the virtual environment from the build stage
 COPY --from=build-stage /opt/venv /opt/venv
 # Set the virtual environment path

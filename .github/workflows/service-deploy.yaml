@@ -161,6 +161,13 @@ jobs:
             # Take the service down
             docker compose down
 
+            # Clean volumns as docker compose doesn't
+            yes y | docker volume prune
+            docker volume rm polybotservice_init_done
+            docker volume rm polybotservice_mongo1_data
+            docker volume rm polybotservice_mongo2_data
+            docker volume rm polybotservice_mongo3_data
+
             $(aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 019273956931.dkr.ecr.us-east-1.amazonaws.com)
 
             # Take it up with the current updated values

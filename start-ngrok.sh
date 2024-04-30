@@ -3,14 +3,14 @@
 readonly DOCKER_CONTAINER='polybot'
 
 wait_until_container_healthy() {
-  local max_retries=10
+  local max_retries=3
   local retries=0
 
   until [ "$(docker inspect --format '{{.State.Health.Status}}' "$DOCKER_CONTAINER")" = 'healthy' ] || [ $retries -eq $max_retries ]
   do
     local container_status="$(docker inspect --format '{{.State.Health.Status}}' "$DOCKER_CONTAINER")"
     echo "Waiting for container $DOCKER_CONTAINER to be 'healthy', current status is '$container_status'. Sleeping for 10 seconds..."
-    sleep 20
+    sleep 10
     ((retries++))
   done
 
@@ -20,9 +20,11 @@ wait_until_container_healthy() {
   fi
 }
 
-sleep 60
+echo "Waiting for container $DOCKER_CONTAINER to fully start..."
+
+sleep 30
 
 wait_until_container_healthy
 
-# Make sure to provide the correct path to ngrok if it's not in the default $PATH
+# Starting ngrok by name. Config file is in ~/.config/ngrok/ngrok.yml
 ngrok start botapp --log=stdout > /dev/null &
