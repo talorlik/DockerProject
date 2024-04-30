@@ -5,3 +5,4 @@ loguru
 requests
 matplotlib
 boto3
+get-docker-secret

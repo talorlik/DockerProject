@@ -5,6 +5,7 @@ from pymongo import MongoClient
 from pymongo import errors as mongo_errors
 import os
 from urllib.parse import quote_plus
+from get_docker_secret import get_docker_secret
 
 def upload_image_to_s3(bucket_name, key, image_path):
     s3 = boto3.client('s3')
@@ -90,7 +91,14 @@ def download_image_from_s3(bucket_name, key, image_path):
 def write_to_db(prediction_summary):
     # MongoDB credentials
     username = 'admin'
-    raw_password = os.environ['MONGO_DB_PASSWORD']
+    try:
+        raw_password = get_docker_secret('mongo_db_password')
+        if raw_password is None:
+            raise ValueError("DB Password is not available")
+    except ValueError as e:
+        logger.exception(f"An error has occurred.\n{str(e)}")
+        return f"An error has occurred.\n{str(e)}", 500
+
     auth_db = 'admin'
 
     # URL encode the password

@@ -40,14 +40,12 @@ services:
       - mongo1
       - mongo2
       - mongo3
-    environment:
-      MONGO_DB_PASSWORD: /run/secrets/mongo_password
     volumes:
       - init_done:/init_done
     networks:
       - mongo-cluster
     secrets:
-      - mongo_password
+      - mongo_db_password
 
   yolo5:
     image: ${YOLO5_IMG_NAME}
@@ -59,7 +57,6 @@ services:
     environment:
       BUCKET_NAME: ${BUCKET_NAME}
       BUCKET_PREFIX: ${BUCKET_PREFIX}
-      MONGO_DB_PASSWORD: /run/secrets/mongo_password
     command: >
       /bin/bash -c "
         max_retries=10;
@@ -81,7 +78,7 @@ services:
     networks:
       - backend-network
     secrets:
-      - mongo_password
+      - mongo_db_password
 
   polybot:
     image: ${POLYBOT_IMG_NAME}
@@ -92,7 +89,6 @@ services:
       - 8443:8443
     environment:
       AWS_PROFILE:
-      TELEGRAM_TOKEN: /run/secrets/telegram_token
       TELEGRAM_APP_URL: ${TELEGRAM_APP_URL}
       BUCKET_NAME: ${BUCKET_NAME}
       BUCKET_PREFIX: ${BUCKET_PREFIX}
@@ -103,12 +99,12 @@ services:
       start_period: 30s
       retries: 3
     secrets:
-      - telegram_token
+      - telegram_bot_token
 
 secrets:
-   telegram_token:
+   telegram_bot_token:
      file: telegram_bot_token.secret
-   mongo_password:
+   mongo_db_password:
      file: mongo_db_password.secret
 
 volumes:

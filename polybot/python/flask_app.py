@@ -1,11 +1,15 @@
 from flask import Flask, request, jsonify
 import os
+from get_docker_secret import get_docker_secret
 from bot import BotFactory
 
 app = Flask(__name__, static_url_path='')
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
-TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
+TELEGRAM_TOKEN = get_docker_secret('telegram_bot_token')
+if TELEGRAM_TOKEN is None:
+    raise ValueError("Token is not available")
+
 TELEGRAM_APP_URL = os.environ['TELEGRAM_APP_URL']
 
 @app.route('/', methods=['GET'])

@@ -26,5 +26,11 @@ sleep 30
 
 wait_until_container_healthy
 
+echo "$DOCKER_CONTAINER started. Starting Ngrok..."
+
 # Starting ngrok by name. Config file is in ~/.config/ngrok/ngrok.yml
 ngrok start botapp --log=stdout > /dev/null &
+
+echo "Ngrok started...."
+
+exit 0

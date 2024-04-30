@@ -60,7 +60,7 @@ sleep 10
 mongosh --host mongo1:27017 --eval "
   console.log('Start: creating admin user...');
   const db = db.getSiblingDB('admin');
-  const pwd = JSON.parse(JSON.stringify('${MONGO_DB_PASSWORD}'));
+  const pwd = JSON.parse(JSON.stringify('$(cat /var/run/secrets/mongo_db_password)'));
   db.createUser({
     user: 'admin',
     pwd: pwd,

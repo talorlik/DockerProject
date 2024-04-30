@@ -1,9 +1,13 @@
 import unittest
 from unittest.mock import patch, Mock, mock_open, MagicMock
-from polybot.bot import BotFactory
 import os
+from get_docker_secret import get_docker_secret
+from polybot.bot import BotFactory
 
-TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
+TELEGRAM_TOKEN = get_docker_secret('telegram_bot_token')
+if TELEGRAM_TOKEN is None:
+    raise ValueError("Token is not available")
+
 TELEGRAM_APP_URL = os.environ['TELEGRAM_APP_URL']
 
 img_path = 'polybot/test/beatles.jpeg' if '/polybot/test' not in os.getcwd() else 'beatles.jpeg'
