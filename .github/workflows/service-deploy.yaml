@@ -101,6 +101,7 @@ jobs:
     name: Deploy Docker compose project
     runs-on: ubuntu-latest
     needs:
+      - MongoInitBuild
       - PolybotBuild
       - Yolo5Build
 
