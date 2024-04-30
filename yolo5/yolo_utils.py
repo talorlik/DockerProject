@@ -97,7 +97,7 @@ def write_to_db(prediction_summary):
     encoded_password = quote_plus(raw_password)
 
     # MongoDB URI including authentication details
-    uri = f"mongodb://{username}:{encoded_password}@mongo:27017/{auth_db}"
+    uri = f"mongodb://{username}:{encoded_password}@mongo1:27017/{auth_db}"
 
     try:
         # Connect to the MongoDB server (assumes MongoDB is running on the default port on localhost)

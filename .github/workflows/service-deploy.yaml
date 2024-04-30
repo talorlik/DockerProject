@@ -9,6 +9,34 @@ env:
   EC2_PUBLIC_IP: 52.87.194.182
 
 jobs:
+  MongoInitBuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repo code
+        uses: actions/checkout@v2
+
+      - name: Build and push image
+        run: |
+          cd mongo
+
+          # Login to ECR (commend in in case you use ECR, change region code and ECR URI):
+          export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 019273956931.dkr.ecr.us-east-1.amazonaws.com
+
+          # Define the base name of the image and the tag separately
+          IMAGE_BASE_NAME=mongo-init
+          IMAGE_TAG=${{ github.run_number }}
+
+          # Build the image
+          docker build -t ${IMAGE_BASE_NAME}:${IMAGE_TAG} .
+
+          # Tag the image for ECR
+          docker tag ${IMAGE_BASE_NAME}:${IMAGE_TAG} 019273956931.dkr.ecr.us-east-1.amazonaws.com/talo-docker-images:${IMAGE_BASE_NAME}-${IMAGE_TAG}
+
+          # Push the image to ECR
+          docker push 019273956931.dkr.ecr.us-east-1.amazonaws.com/talo-docker-images:${IMAGE_BASE_NAME}-${IMAGE_TAG}
+
   PolybotBuild:
     runs-on: ubuntu-latest
     steps:
@@ -120,6 +148,7 @@ jobs:
             YOLO5_NAME=yolo5
             YOLO5_PORT=8081
             MONGO_IMG_NAME=mongo:5
+            MONGO_INIT_IMG_NAME=019273956931.dkr.ecr.us-east-1.amazonaws.com/talo-docker-images:mongo-init-${{ github.run_number }}
             TELEGRAM_APP_URL=https://immense-assuring-ghoul.ngrok-free.app
             BUCKET_NAME=talo-s3
             BUCKET_PREFIX=images

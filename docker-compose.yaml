@@ -4,7 +4,7 @@ services:
     container_name: mongo1
     ports:
       - "27017:27017"
-    command: mongod --replSet mongo-replica-set --bind_ip localhost,mongo1
+    command: mongod --replSet mongo-replica-set --bind_ip_all
     volumes:
       - mongo1_data:/data/db
     networks:
@@ -16,7 +16,7 @@ services:
     container_name: mongo2
     ports:
       - "27018:27017"
-    command: mongod --replSet mongo-replica-set --bind_ip localhost,mongo2
+    command: mongod --replSet mongo-replica-set --bind_ip_all
     volumes:
       - mongo2_data:/data/db
     networks:
@@ -27,14 +27,14 @@ services:
     container_name: mongo3
     ports:
       - "27019:27017"
-    command: mongod --replSet mongo-replica-set --bind_ip localhost,mongo3
+    command: mongod --replSet mongo-replica-set --bind_ip_all
     volumes:
       - mongo3_data:/data/db
     networks:
       - mongo-cluster
 
   mongo-init:
-    image: ${MONGO_IMG_NAME}
+    image: ${MONGO_INIT_IMG_NAME}
     container_name: mongo-init
     depends_on:
       - mongo1
@@ -42,56 +42,6 @@ services:
       - mongo3
     environment:
       MONGO_DB_PASSWORD: /run/secrets/mongo_password
-    command: >
-      /bin/bash -c "
-        echo 'Waiting for MongoDB replicas to start...';
-        sleep 10;
-        mongosh --host mongo1 --eval '
-          function sleep(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-          }
-          async function initReplicaSet() {
-            rs.initiate({
-              _id: \"mongo-replica-set\",
-              members: [
-                {_id: 0, host: \"mongo1:27017\"},
-                {_id: 1, host: \"mongo2:27017\"},
-                {_id: 2, host: \"mongo3:27017\"}
-              ]
-            });
-            while(true) {
-              const status = rs.status();
-              if (status.ok == 1) break;
-              await sleep(1000);
-            }
-            console.log(JSON.stringify(rs.status(), null, 2));
-          }
-          async function createUser() {
-            const db = db.getSiblingDB('admin');
-            const pwd = JSON.parse(JSON.stringify(process.env.MONGO_DB_PASSWORD));
-            await db.createUser({
-              user: \"admin\",
-              pwd: pwd,
-              mechanisms: [\"SCRAM-SHA-1\"],
-              roles: [
-                { role: \"root\", db: \"admin\" },
-                { role: \"clusterAdmin\", db: \"admin\" },
-                { role: \"dbOwner\", db: \"admin\" },
-                { role: \"readWriteAnyDatabase\", db: \"admin\"}
-              ]
-            });
-            console.log('User admin was created');
-          }
-          async function createDBandCollection() {
-            const db = db.getSiblingDB('image_predictions');
-            await db.createCollection('prediction_results');
-            console.log('Database and collection created');
-          }
-          await initReplicaSet();
-          await createUser();
-          await createDBandCollection();
-        ' && touch /init_done/success;
-      "
     volumes:
       - init_done:/init_done
     networks:
@@ -112,13 +62,22 @@ services:
       MONGO_DB_PASSWORD: /run/secrets/mongo_password
     command: >
       /bin/bash -c "
+        max_retries=10;
+        retries=0;
         while [ ! -f /init_done/success ]; do
           echo 'Waiting for mongo-init to complete...';
-          sleep 1;
+          sleep 10;
+          retries=$((retries+1));
+          if [[ $$retries -ge $$max_retries ]]; then
+            echo 'Failed to start YOLO5 application: mongo-init did not complete within the max retries.';
+            exit 1;
+          fi;
         done;
         echo 'Starting YOLO5 application...';
         python3 app.py
       "
+    volumes:
+      - init_done:/init_done
     networks:
       - backend-network
     secrets:
