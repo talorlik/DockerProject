@@ -22,7 +22,7 @@ jobs:
         run: |
           IP=$(aws ec2 describe-instances --instance-ids i-0598dd777bcbfdf21 --query 'Reservations[*].Instances[*].PublicIpAddress' --output text)
           if [ $? -eq 0 ]; then
-            echo "::set-output name=ec2_ip::$IP"
+            echo "ec2_ip=$IP" >> $GITHUB_OUTPUT
           else
             echo "AWS CLI command failed:"
             echo $IP

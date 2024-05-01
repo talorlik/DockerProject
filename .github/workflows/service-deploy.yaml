@@ -20,7 +20,7 @@ jobs:
         run: |
           IP=$(aws ec2 describe-instances --instance-ids i-0598dd777bcbfdf21 --query 'Reservations[*].Instances[*].PublicIpAddress' --output text)
           if [ $? -eq 0 ]; then
-            echo "::set-output name=ec2_ip::$IP"
+            echo "ec2_ip=$IP" >> $GITHUB_OUTPUT
           else
             echo "AWS CLI command failed:"
             echo $IP
@@ -64,16 +64,15 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Build and push image
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: 'us-east-1'
         run: |
           cd polybot
 
           # Login to ECR (commend in in case you use ECR, change region code and ECR URI):
-          export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-          export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 019273956931.dkr.ecr.us-east-1.amazonaws.com
-
-          # Login to DockerHub (comment out if you don't use DockerHub):
-          # docker login -u ${{ secrets.DOCKER_REPO_USERNAME }} -p ${{ secrets.DOCKER_REPO_PASSWORD }}
 
           # Define the base name of the image and the tag separately
           IMAGE_BASE_NAME=polybot
@@ -95,14 +94,15 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Build and push image
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: 'us-east-1'
         run: |
           cd yolo5
 
-          export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-          export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # Login to ECR (commend in in case you use ECR, change region code and ECR URI):
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 019273956931.dkr.ecr.us-east-1.amazonaws.com
-
-          # docker login -u ${{ secrets.DOCKER_REPO_USERNAME }} -p ${{ secrets.DOCKER_REPO_PASSWORD }}
 
           # Define the base name of the image and the tag separately
           IMAGE_BASE_NAME=yolo5
