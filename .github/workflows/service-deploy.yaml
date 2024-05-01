@@ -156,7 +156,9 @@ jobs:
             """ > .env
 
             # Stop ngrok processes
-            killall ngrok
+            sudo supervisorctl reread
+            sudo supervisorctl update
+            sudo supervisorctl stop ngrok
 
             # Take the service down
             docker compose down

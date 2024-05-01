@@ -28,8 +28,9 @@ wait_until_container_healthy
 
 echo "$DOCKER_CONTAINER started. Starting Ngrok..."
 
-# Starting ngrok by name. Config file is in ~/.config/ngrok/ngrok.yml
-ngrok start botapp --log=stdout > /dev/null &
+# Starting ngrok via supervisor. The supervisor config for Ngrok is in: /etc/supervisor/conf.d/ngrok.conf
+# The Ngrok config file is in ~/.config/ngrok/ngrok.yml
+sudo supervisorctl start ngrok
 
 echo "Ngrok started...."
 
