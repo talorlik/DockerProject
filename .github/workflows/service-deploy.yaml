@@ -5,10 +5,18 @@ on:
     branches:
       - main
 
-env:
-  EC2_PUBLIC_IP: $(aws ec2 describe-instances --instance-ids i-0598dd777bcbfdf21 --query 'Reservations[*].Instances[*].PublicIpAddress' --output text)
-
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      ec2_ip: ${{ steps.set_ip.outputs.ec2_ip }}
+    steps:
+      - name: Fetch EC2 Public IP
+        id: set_ip
+        run: |
+          IP=$(aws ec2 describe-instances --instance-ids i-0598dd777bcbfdf21 --query 'Reservations[*].Instances[*].PublicIpAddress' --output text)
+          echo "::set-output name=ec2_ip::$IP"
+
   MongoInitBuild:
     runs-on: ubuntu-latest
     steps:
@@ -101,10 +109,12 @@ jobs:
     name: Deploy Docker compose project
     runs-on: ubuntu-latest
     needs:
+      - setup
       - MongoInitBuild
       - PolybotBuild
       - Yolo5Build
-
+    env:
+      EC2_PUBLIC_IP: ${{ needs.setup.outputs.ec2_ip }}
     steps:
       - name: Checkout the repo code
         uses: actions/checkout@v2
