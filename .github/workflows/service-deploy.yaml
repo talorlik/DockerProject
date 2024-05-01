@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  EC2_PUBLIC_IP: 54.158.27.130
+  EC2_PUBLIC_IP: $(aws ec2 describe-instances --instance-ids i-0598dd777bcbfdf21 --query 'Reservations[*].Instances[*].PublicIpAddress' --output text)
 
 jobs:
   MongoInitBuild:
@@ -127,7 +127,10 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
-            sudo apt-get update && sudo apt-get install jq -y
+            # Check if jq is installed
+            if ! command -v jq &> /dev/null; then
+              sudo apt-get update && sudo apt-get install jq -y
+            fi
 
             cd PolybotService/
 

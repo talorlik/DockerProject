@@ -32,3 +32,7 @@ echo "$DOCKER_CONTAINER started. Starting Ngrok..."
 # The Ngrok config file is in ~/.config/ngrok/ngrok.yml
 # ngrok start botapp --log=stdout > /dev/null &
 sudo supervisorctl start ngrok
+
+echo "Ngrok started...."
+
+exit 0
