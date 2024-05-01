@@ -12,8 +12,6 @@ if TELEGRAM_TOKEN is None:
 
 TELEGRAM_APP_URL = os.environ['TELEGRAM_APP_URL']
 
-bot_factory = BotFactory(TELEGRAM_TOKEN, TELEGRAM_APP_URL)
-
 @app.route('/', methods=['GET'])
 def index():
     return 'Ok', 200
@@ -24,6 +22,7 @@ def health():
 
 @app.route(f'/{TELEGRAM_TOKEN}/', methods=['POST'])
 def webhook():
+    bot_factory = BotFactory(TELEGRAM_TOKEN, TELEGRAM_APP_URL)
     req = request.get_json()
     msg = req['message']
     bot = bot_factory.get_bot(msg)
