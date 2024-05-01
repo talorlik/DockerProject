@@ -30,6 +30,7 @@ echo "$DOCKER_CONTAINER started. Starting Ngrok..."
 
 # Starting ngrok via supervisor. The supervisor config for Ngrok is in: /etc/supervisor/conf.d/ngrok.conf
 # The Ngrok config file is in ~/.config/ngrok/ngrok.yml
+# ngrok start botapp --log=stdout > /dev/null &
 sudo supervisorctl start ngrok
 
 echo "Ngrok started...."
