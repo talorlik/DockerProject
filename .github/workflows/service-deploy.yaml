@@ -72,7 +72,7 @@ jobs:
           cd polybot
 
           # Login to ECR (commend in in case you use ECR, change region code and ECR URI):
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 019273956931.dkr.ecr.us-east-1.amazonaws.com
+          aws ecr get-login-password --region ${{ env.AWS_DEFAULT_REGION }} | docker login --username AWS --password-stdin 019273956931.dkr.ecr.${{ env.AWS_DEFAULT_REGION }}.amazonaws.com
 
           # Define the base name of the image and the tag separately
           IMAGE_BASE_NAME=polybot
@@ -102,7 +102,7 @@ jobs:
           cd yolo5
 
           # Login to ECR (commend in in case you use ECR, change region code and ECR URI):
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 019273956931.dkr.ecr.us-east-1.amazonaws.com
+          aws ecr get-login-password --region ${{ env.AWS_DEFAULT_REGION }} | docker login --username AWS --password-stdin 019273956931.dkr.ecr.${{ env.AWS_DEFAULT_REGION }}.amazonaws.com
 
           # Define the base name of the image and the tag separately
           IMAGE_BASE_NAME=yolo5

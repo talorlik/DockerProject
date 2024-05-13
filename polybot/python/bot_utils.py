@@ -1,8 +1,12 @@
 import boto3
 from botocore import exceptions as boto_exceptions
 from loguru import logger
-import json
 from collections import Counter
+import os
+
+aws_profile = os.getenv("AWS_PROFILE", None)
+if aws_profile is not None and aws_profile == "dev":
+    boto3.setup_default_session(profile_name=aws_profile)
 
 def upload_image_to_s3(bucket_name, key, image_path):
     s3 = boto3.client('s3')
@@ -10,87 +14,79 @@ def upload_image_to_s3(bucket_name, key, image_path):
         with open(image_path, 'rb') as img:
             s3.put_object(Bucket=bucket_name, Key=key, Body=img)
     except FileNotFoundError as e:
-        logger.exception(f"A FileNotFoundError has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"A FileNotFoundError has occurred {bucket_name}/{key}.\n{str(e)}", 500
+        logger.exception(f"Upload to {bucket_name}/{key} failed. A FileNotFoundError has occurred.\n{str(e)}")
+        return f"Upload to {bucket_name}/{key} failed. A FileNotFoundError has occurred.\n{str(e)}", 500
     except PermissionError as e:
-        logger.exception(f"A PermissionError has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"A PermissionError has occurred {bucket_name}/{key}.\n{str(e)}", 500
-    except FileExistsError as e:
-        logger.exception(f"A FileExistsError has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"A FileExistsError has occurred {bucket_name}/{key}.\n{str(e)}", 500
+        logger.exception(f"Upload to {bucket_name}/{key} failed. A PermissionError has occurred.\n{str(e)}")
+        return f"Upload to {bucket_name}/{key} failed. A PermissionError has occurred.\n{str(e)}", 500
     except IsADirectoryError as e:
-        logger.exception(f"An IsADirectoryError has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"An IsADirectoryError has occurred {bucket_name}/{key}.\n{str(e)}", 500
+        logger.exception(f"Upload to {bucket_name}/{key} failed. An IsADirectoryError has occurred.\n{str(e)}")
+        return f"Upload to {bucket_name}/{key} failed. An IsADirectoryError has occurred.\n{str(e)}", 500
     except OSError as e:
-        logger.exception(f"An {type(e).__name__} has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"An {type(e).__name__} has occurred {bucket_name}/{key}.\n{str(e)}", 500
+        logger.exception(f"Upload to {bucket_name}/{key} failed. An {type(e).__name__} has occurred.\n{str(e)}")
+        return f"Upload to {bucket_name}/{key} failed. An {type(e).__name__} has occurred.\n{str(e)}", 500
     except boto_exceptions.ClientError as e:
-        logger.exception(f"A ClientError has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"A ClientError has occurred {bucket_name}/{key}.\n{str(e)}", 500
+        logger.exception(f"Upload to {bucket_name}/{key} failed. A ClientError has occurred.\n{str(e)}")
+        return f"Upload to {bucket_name}/{key} failed. A ClientError has occurred.\n{str(e)}", 500
     except boto_exceptions.EndpointConnectionError as e:
-        logger.exception(f"An EndpointConnectionError has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"An EndpointConnectionError has occurred {bucket_name}/{key}.\n{str(e)}", 500
+        logger.exception(f"Upload to {bucket_name}/{key} failed. An EndpointConnectionError has occurred.\n{str(e)}")
+        return f"Upload to {bucket_name}/{key} failed. An EndpointConnectionError has occurred.\n{str(e)}", 500
     except boto_exceptions.NoCredentialsError as e:
-        logger.exception(f"A NoCredentialsError has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"A NoCredentialsError has occurred {bucket_name}/{key}.\n{str(e)}", 500
+        logger.exception(f"Upload to {bucket_name}/{key} failed. A NoCredentialsError has occurred.\n{str(e)}")
+        return f"Upload to {bucket_name}/{key} failed. A NoCredentialsError has occurred.\n{str(e)}", 500
     except boto_exceptions.ParamValidationError as e:
-        logger.exception(f"A ParamValidationError has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"A ParamValidationError has occurred {bucket_name}/{key}.\n{str(e)}", 500
+        logger.exception(f"Upload to {bucket_name}/{key} failed. A ParamValidationError has occurred.\n{str(e)}")
+        return f"Upload to {bucket_name}/{key} failed. A ParamValidationError has occurred.\n{str(e)}", 500
     except Exception as e:
-        logger.exception(f"An Unknown {type(e).__name__} has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"An Unknown {type(e).__name__} has occurred {bucket_name}/{key}.\n{str(e)}", 500
+        logger.exception(f"Upload to {bucket_name}/{key} failed. An Unknown {type(e).__name__} has occurred.\n{str(e)}")
+        return f"Upload to {bucket_name}/{key} failed. An Unknown {type(e).__name__} has occurred.\n{str(e)}", 500
 
-    logger.info(f"Image uploaded successfully to S3 bucket: {bucket_name}/{key}")
-    return f"Image uploaded successfully to S3 bucket: {bucket_name}/{key}", 200
+    logger.info(f"Upload to {bucket_name}/{key} succeeded.")
+    return f"Upload to {bucket_name}/{key} succeeded.", 200
 
-def download_image_from_s3(bucket_name, key, image_path):
+def download_image_from_s3(bucket_name, key, image_path, images_prefix):
     s3 = boto3.client('s3')
+
+    if not os.path.exists(images_prefix):
+        os.makedirs(images_prefix)
+
     try:
         response = s3.get_object(Bucket=bucket_name, Key=key)
     except boto_exceptions.ClientError as e:
-        logger.exception(f"A ClientError has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"A ClientError has occurred {bucket_name}/{key}.\n{str(e)}", 500
+        logger.exception(f"Download from {bucket_name}/{key} failed. A ClientError has occurred.\n{str(e)}")
+        return f"Download from {bucket_name}/{key} failed. A ClientError has occurred.\n{str(e)}", 500
     except boto_exceptions.EndpointConnectionError as e:
-        logger.exception(f"An EndpointConnectionError has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"An EndpointConnectionError has occurred {bucket_name}/{key}.\n{str(e)}", 500
+        logger.exception(f"Download from {bucket_name}/{key} failed. An EndpointConnectionError has occurred.\n{str(e)}")
+        return f"Download from {bucket_name}/{key} failed. An EndpointConnectionError has occurred.\n{str(e)}", 500
     except boto_exceptions.NoCredentialsError as e:
-        logger.exception(f"A NoCredentialsError has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"A NoCredentialsError has occurred {bucket_name}/{key}.\n{str(e)}", 500
+        logger.exception(f"Download from {bucket_name}/{key} failed. A NoCredentialsError has occurred.\n{str(e)}")
+        return f"Download from {bucket_name}/{key} failed. A NoCredentialsError has occurred.\n{str(e)}", 500
     except Exception as e:
-        logger.exception(f"An Unknown {type(e).__name__} has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"An Unknown {type(e).__name__} has occurred {bucket_name}/{key}.\n{str(e)}", 500
+        logger.exception(f"Download from {bucket_name}/{key} failed. An Unknown {type(e).__name__} has occurred.\n{str(e)}")
+        return f"Download from {bucket_name}/{key} failed. An Unknown {type(e).__name__} has occurred.\n{str(e)}", 500
 
     try:
         with open(image_path, 'wb') as img:
             img.write(response['Body'].read())
-    except FileNotFoundError as e:
-        logger.exception(f"A FileNotFoundError has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"A FileNotFoundError has occurred {bucket_name}/{key}.\n{str(e)}", 500
     except PermissionError as e:
-        logger.exception(f"A PermissionError has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"A PermissionError has occurred {bucket_name}/{key}.\n{str(e)}", 500
-    except FileExistsError as e:
-        logger.exception(f"A FileExistsError has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"A FileExistsError has occurred {bucket_name}/{key}.\n{str(e)}", 500
+        logger.exception(f"Download from {bucket_name}/{key} failed. A PermissionError has occurred.\n{str(e)}")
+        return f"Download from {bucket_name}/{key} failed. A PermissionError has occurred.\n{str(e)}", 500
     except IsADirectoryError as e:
-        logger.exception(f"An IsADirectoryError has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"An IsADirectoryError has occurred {bucket_name}/{key}.\n{str(e)}", 500
+        logger.exception(f"Download from {bucket_name}/{key} failed. An IsADirectoryError has occurred.\n{str(e)}")
+        return f"Download from {bucket_name}/{key} failed. An IsADirectoryError has occurred.\n{str(e)}", 500
     except OSError as e:
-        logger.exception(f"An {type(e).__name__} has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"An {type(e).__name__} has occurred {bucket_name}/{key}.\n{str(e)}", 500
+        logger.exception(f"Download from {bucket_name}/{key} failed. An {type(e).__name__} has occurred.\n{str(e)}")
+        return f"Download from {bucket_name}/{key} failed. An {type(e).__name__} has occurred.\n{str(e)}", 500
     except Exception as e:
-        logger.exception(f"An Unknown {type(e).__name__} has occurred {bucket_name}/{key}.\n{str(e)}")
-        return f"An Unknown {type(e).__name__} has occurred {bucket_name}/{key}.\n{str(e)}", 500
+        logger.exception(f"Download from {bucket_name}/{key} failed. An Unknown {type(e).__name__} has occurred.\n{str(e)}")
+        return f"Download from {bucket_name}/{key} failed. An Unknown {type(e).__name__} has occurred.\n{str(e)}", 500
 
-    logger.info(f"Image downloaded successfully from S3 bucket: {bucket_name}/{key} to {image_path}")
-    return f"Image downloaded successfully from S3 bucket: {bucket_name}/{key} to {image_path}", 200
+    logger.info(f"Download from {bucket_name}/{key} to {image_path} succeeded.")
+    return f"Download from {bucket_name}/{key} to {image_path} succeeded.", 200
 
-def parse_result(json_data):
-    # Parse the JSON data
-    data = json.loads(json_data)
-
+def parse_result(json_data) -> str:
     # Extract the labels
-    labels = data["labels"]
+    labels = json_data["labels"]
 
     # Create a list of class values from the labels
     class_names = [label["class"] for label in labels if "class" in label]

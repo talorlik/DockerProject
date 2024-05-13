@@ -17,7 +17,7 @@ class Img:
         self.path = Path(path)
         self.data = rgb2gray(imread(path)).tolist()
 
-    def save_img(self):
+    def save_img(self) -> Path:
         """
         Do not change the below implementation
         """
@@ -25,7 +25,7 @@ class Img:
         imsave(new_path, self.data, cmap='gray')
         return new_path
 
-    def blur(self, blur_level=16):
+    def blur(self, blur_level=16) -> None:
         """
         This method blurs the image by a blur level
 
@@ -52,7 +52,7 @@ class Img:
 
         self.data = result
 
-    def contour(self):
+    def contour(self) -> None:
         """
         This method applies a contour effect to the image by calculating the differences between neighboring pixels along each row of the image matrix.
 
@@ -65,7 +65,7 @@ class Img:
 
             self.data[i] = res
 
-    def rotate_clockwise(self, mat):
+    def rotate_clockwise(self, mat) -> list:
         """
         This method takes in the image matrix and rotates it clockwise
 
@@ -84,7 +84,7 @@ class Img:
 
         return rotated_mat
 
-    def rotate_anti_clockwise(self, mat):
+    def rotate_anti_clockwise(self, mat) -> list:
         """
         This method takes in the image matrix and rotates it anti-clockwise.
 
@@ -100,7 +100,7 @@ class Img:
 
         return rotated_mat
 
-    def rotate(self, direction="clockwise", deg=90):
+    def rotate(self, direction="clockwise", deg=90) -> None:
         """
         This method takes in a direction and degrees and rotates the image accordingly
 
@@ -132,7 +132,7 @@ class Img:
         self.data = mat
 
 
-    def salt_n_pepper(self, noise_level=0.05):
+    def salt_n_pepper(self, noise_level=0.05) -> None:
         """
         Applies salt and pepper noise to a given grayscale image.
 
@@ -168,7 +168,7 @@ class Img:
 
         self.data = image
 
-    def concat(self, other_img, direction="horizontal", sides="right-to-left"):
+    def concat(self, other_img, direction="horizontal", sides="right-to-left") -> None:
         """
         This method concatenates two images together horizontally or vertically (side by side).
         - Currently it is limited to concatenating only two images
@@ -222,7 +222,7 @@ class Img:
 
         self.data = concatenated_image
 
-    def segment(self):
+    def segment(self) -> None:
         """
         Segments the image by setting pixels with intensity greater than 100 to white (255),
         and all others to black (0).

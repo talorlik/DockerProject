@@ -19,7 +19,7 @@ echo -e "\n\n\n-----------------------------------------------------------------
 echo "Test Case II: There are 3 running MongoDB containers"
 echo -e "-----------------------------------------------------------------------------------------------------------------"
 
-MONGO_CONTAINER_IDS=$(docker ps --filter "status=running" --filter "label=com.docker.compose.project" --format '{{.ID}} {{.Image}}' | grep " mongo:.*" | awk '{print $1}')
+MONGO_CONTAINER_IDS=$(docker ps --filter "status=running" --filter "label=com.docker.compose.project" --format '{{.ID}} {{.Image}}' | grep "mongo:.*" | awk '{print $1}')
 
 docker ps --filter "status=running" --filter "label=com.docker.compose.project"
 
@@ -62,4 +62,3 @@ if [ "$response_code" -ne 200 ]; then
 fi
 
 echo -e "\n✅ The polybot service is available"
-

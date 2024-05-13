@@ -25,10 +25,16 @@ def health():
 @app.route(f'/{TELEGRAM_TOKEN}/', methods=['POST'])
 def webhook():
     req = request.get_json()
-    msg = req['message']
+    if "message" in req:
+        msg = req['message']
+    elif "edited_message" in req:
+        msg = req['edited_message']
+    else:
+        return 'No message', 400
+
     bot = bot_factory.get_bot(msg)
     bot.handle_message(msg)
-    return 'Ok'
+    return 'Ok', 200
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8443)

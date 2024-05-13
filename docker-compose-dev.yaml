@@ -76,6 +76,7 @@ services:
       "
     volumes:
       - init_done:/init_done
+      - /Users/talo/.aws/credentials:/root/.aws/credentials
     networks:
       - backend-network
       - frontend-network
@@ -102,6 +103,8 @@ services:
       timeout: 10s
       start_period: 30s
       retries: 3
+    volumes:
+      - /Users/talo/.aws/credentials:/home/appuser/.aws/credentials
     networks:
       - frontend-network
     secrets:

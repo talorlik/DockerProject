@@ -1,53 +1,98 @@
-# The Polybot Service: Docker Project [![][autotest_badge]][autotest_workflow]
+# The Polybot plus Image processing Service: Docker Project [![][autotest_badge]][autotest_workflow]
 
-## Background and goals
+## Intro
 
+This project expands on the Python [Image processing service](https://github.com/talorlik/ImageProcessingService) by adding image object detection capabilities in the form of a Yolo5 model, running it all in Docker containers with Docker Compose and adding elements such as AWS EC2, AWS S3, AWS ECR and MongoDB.
 
+The build and deploy process are executed automatically with GitHub Actions. The workflow also stops/starts the services with Docker compose.
 
-In the [previous Python project][PolybotServicePython], you developed a chatbot application which applies filters to images sent by users to a Telegram bot.
+The containers are:
 
-In this project, you extend the service to detect objects in images, and send the results to clients.
-You'll design, develop and deploy a service consisted by multiple containerized microservices, as follows:
-
-- `polybot`: Telegram Bot app.
+- `mongo1`, `mongo2`, `mongo3`: MongoDB cluster to store data; comprised of three Mongo containers as a ReplicaSet.
+- `mongo-init`: Acts as the initiator of the MongoDB cluster.
+- `polybot`: Telegram Bot app which handles the messages.
 - `yolo5`: Image object detection container based on the Yolo5 pre-train deep learning model.
-- `mongo`: MongoDB cluster to store data.
 
-## Preliminaries
+## Basic flow
 
+1. The user uploads an image on the Telegram App and puts a caption of `predict`.
+2. The Polybot service picks up the message and handles it by instantiating the `ObjectDetectionBot`.
+3. The image is then uploaded to S3 and an HTTP call is made to the Yolo5 service.
+4. In the Yolo5 service the image is downloaded from S3 and the detection process kicks in.
+5. The resulted image is uploaded back to S3 and the summary is save to MongoDB.
+6. Once the process succeeds the Polybot service responds back to the user with the image and a readable summary of what was found.
 
-1. Fork this repo (read [here][fork_github] how).
-2. Clone your forked repository into a new PyCharm project (read [here][clone_pycharm] how).
-3. It is a good practice to create an isolated Python virtual environment specifically for your project.
-   [Configure a new Python virtual environment in PyCharm](https://www.jetbrains.com/help/pycharm/creating-virtual-environment.html).
+## Directory structure
+```console
+.
+├── LICENSE
+├── README.md
+├── docker-compose-dev.yaml
+├── docker-compose.yaml
+├── mongo
+│   ├── Dockerfile
+│   └── init-script.sh
+├── polybot
+│   ├── Dockerfile
+│   ├── __init__.py
+│   ├── photos
+│   ├── python
+│   │   ├── __init__.py
+│   │   ├── bot.py
+│   │   ├── bot_utils.py
+│   │   ├── flask_app.py
+│   │   ├── img_proc.py
+│   │   └── requirements.txt
+│   ├── uwsgi.ini
+│   └── wsgi.py
+├── start-ngrok.sh
+├── test
+│   ├── beatles.jpeg
+│   ├── test-compose-project.sh
+│   ├── test_concat.py
+│   ├── test_rotate.py
+│   ├── test_salt_n_pepper.py
+│   ├── test_segment.py
+│   └── test_telegram_bot.py
+└── yolo5
+    ├── Dockerfile
+    ├── app.py
+    ├── requirements.txt
+    └── yolo_utils.py
+```
 
-Later on, you are encouraged to change the `README.md` file content to provide relevant information about your service project, e.g. how to launch the app, main features, etc.
+## Techincal details
 
-Let's get started...
+### General notes regarding the Python code
 
-## Guidelines
+- The code makes use of environment variables and secrets so that those values won't be hard coded.
+- I've made use of the OO pattern called `Factory` to instantiate the right Bot for the need, based on the incoming message from the Telegram App.
+- The **base Bot** (`telebot.TeleBot`) gets instantiated once hence the webhook only gets created once.
+- Each respective bot (`Bot`, `QuoteBot`, `ImageProcessingBot`, `ObjectDetectionBot`) essentially "wraps" the base bot while all extend from `Bot`.
+- I've made use of multi-threading protection on the exception handling and the bot object instances used, to allow for multiple users to communicate with the bot at the same time without race conditions between them. I've used the Python `threading` package for this.
+- I've implemented logic in the `BotFactory` that will reuse an already existing bot instance of a specific type if it's there so that it won't have to recreate it again as well as to be able to reuse already set global variables from within the respective bot instance.
+- I've implemented extensive Exception Handling on all possible fails and also implemented retry mechanism where needed.
+- The user get a readable message in case of a failure so that he can then try again.
+- I've implemented extensive logging so that important information as well as failures are outputted to the `stdout` (These are then viewable in the docker logs)
 
-### The `mongo` microservice
+### MongoDB Cluster (3 containers in a ReplicaSet)
 
-MongoDB is a [document](https://www.mongodb.com/document-databases), [NoSQL](https://www.mongodb.com/nosql-explained/nosql-vs-sql) database, offers high availability deployment using multiple replica sets.
-**High availability** (HA) indicates a system designed for durability and redundancy.
-A **replica set** is a group of MongoDB servers, called nodes, containing an identical copy of the data.
-If one of the servers fails, the other two will pick up the load while the crashed one restarts, without any data loss.
+I've converted these instructions [Deploy MongoDB cluster with Docker](https://www.mongodb.com/compatibility/deploying-a-mongodb-cluster-with-docker) into docker compose format.
 
-Follow the official docs to deploy containerized MongoDB cluster on your local machine.
-Please note that the mongo deployment should be configured **to persist the data that was stored in it**.
+In addition to creating the three Mongo containers I've automated the initialization process with the use of a 4th container which runs a bash script (`init-script.sh`) for which I've built a separate Docker image.
 
-https://www.mongodb.com/compatibility/deploying-a-mongodb-cluster-with-docker
-
-Got HA mongo deployment? great, let's move on...
+The bash script does the following:
+1. Initializes the ReplicaSet and waits for an `Ok` status and for the `PRIMARY` Mongo instance to be set.
+2. It then creates the `admin` user with which I write to the DB so as NOT to use the default `root` user.
+3. Creates the database (`image_predictions`) and collection (`prediction_results`) into which the image detection summary gets saved.
+4. Upon success of all the above a file is created in a path (`/init_done/success`) that is accessible via a Docker Volume.
 
 ### The `yolo5` microservice
 
-[YoloV5](https://github.com/ultralytics/yolov5) is a state-of-the-art object detection AI model. It is known for its high accuracy object detection in images and videos.
-You'll work with a lightweight model that can detect [80 objects](https://github.com/ultralytics/yolov5/blob/master/data/coco128.yaml) while it's running on your old, poor, CPU machine.
+[YoloV5](https://github.com/ultralytics/yolov5) is an object detection AI model.
+The one used in this project is a lightweight model that can detect [80 objects](https://github.com/ultralytics/yolov5/blob/master/data/coco128.yaml) while it's running on your old, poor, CPU machine.
 
-The service files can be found under the `yolo5` directory.
-The `yolo5/app.py` file is a Flask-based webserver, with an endpoint `/predict`, which can be used to predict objects in a given image, as follows:
+It runs as a Python Flask-based webserver, with an endpoint `/predict`, which can be used to predict objects in a given image, as follows:
 
 ```text
 localhost:8081/predict?imgName=street.jpeg
@@ -56,26 +101,13 @@ localhost:8081/predict?imgName=street.jpeg
 The `imgName` query parameter value (`street.jpeg` in the above example) represents an image name stored in an **S3 bucket**.
 The `yolo5` service then downloads the image from the S3 bucket and detects objects in it.
 
-Take a look on the code, and complete the `# TODO`s. Feel free to change/add any functionality as you wish!
-
-> [!NOTE]
-> If you attempt to run the `yolo5` service locally, not as a Docker container, you'll encounter errors since the app depends on many files that don't exist on your local machine, but do exist in the [`ultralytics/yolov5`](https://hub.docker.com/r/ultralytics/yolov5) Docker image.
-> Thus, it's recommended first to containerize the app then run it as a container. [Read here](https://github.com/ultralytics/yolov5) if you still want to work hard and run it uncontainerized.
-
-
-To containerize the app, take a look at the provided `Dockerfile`, it's already implemented for you, no need to touch.
-
-When running the container on your local machine, you may need to **mount** the directory containing the AWS credentials on your local machine (`$HOME/.aws/credentials`) to allow the container communicate with S3.
-
-**Note: Never build a docker image with AWS credentials stored in it! Never commit AWS credentials in your source code! Never!**
-
-Once the image was built and run successfully, you can communicate with it directly by:
+**Example output**
 
 ```bash
 curl -X POST localhost:8081/predict?imgName=street.jpeg
 ```
 
-For example, here is an image and the corresponding results summary:
+Here is an image and the corresponding results summary:
 
 <img src="https://alonitac.github.io/DevOpsTheHardWay/img/docker_project_street.jpeg" width="60%">
 
@@ -136,31 +168,35 @@ The model detected a _person_, _traffic light_, _potted plant_, _stop sign_, _ca
 
 ### The `polybot` microservice
 
-Now let's integrate the `polybot` microservice with the `yolo5`. The integration is done as follows:
+The `polybot` handles all the incoming messages from the Telegram Bot and based on either the text sent or the caption added to an image it executes the respective action, be it an image filter or calling the yolo5 service for image object detection.
 
-1. Clients send images to the Telegram bot.
-2. The `polybot` microservice receives the message, downloads the image to the local file system, and uploads it to an S3 bucket.
-3. The `polybot` microservice then initiates an HTTP request to the `yolo5` microservice, and waits for the response.
-4. Once the response arrived, the `polybot` microservice parse the returned JSON and sends the results to the client, in any form you like.
+It is a Python Flask application which I run with uWSGI server to handle load balancing.
+
+The Dockerfile is built as a multi-stage image. It creates a VENV inside and installs all the Python dependencies and then runs the uWSGI server with a custom configuration file (`uwsgi.ini`)
 
 Here is an end-to-end example of how it may look like:
 
 <img src="https://alonitac.github.io/DevOpsTheHardWay/img/docker_project_polysample.jpg" width="30%">
 
-You are highly encouraged to leverage your code implementation from the previous [Python project][PolybotServicePython], or alternatively, to use the code sample given to you under `polybot/` directory.
-To get some guidance on how to implement the code, take a look at the `# TODO`s in `polybot/bot.py` file.
+For further details on the **Telegram Bot** and integration with **Ngrok**, you can read [here](https://github.com/talorlik/ImageProcessingService?tab=readme-ov-file#telegram-bot)
 
-## Deploy the service in an EC2 instance as a Docker Compose project
+### Docker Compose breakdown
 
-To simplify the deployment process, we'll create a Docker Compose project in the `docker-compose.yaml` file.
-This file will enable you to launch all 3 microservices with a single command: `docker compose up`.
+The `docker-compose.yaml` file is as follows:
+1. There are three Mongo services (`mongo1`, `mongo2`, `mongo3`) sharing the same Docker network (`mongo-cluster`), and run as ReplicaSet.
+  a. The MongoDB data is persisted in a Docker volume. Each container has its own (`mongo1_data`, `mongo2_data`, `mongo3_data`).
+  b. Internally all MongoDBs run on the same port (`27017`) but externally each container exposes it's own (`27017`, `27018`, `27019` respectively) so that there won't be a clash between them.
+2. `mongo-init` container that does the Mongo initialization and "dies" once done (explanation on the bash script it mentioned above).
+  a. The MongoDB password is pulled in from Docker secrets (`mongo_db_password`) and is used in the user creation as well as in the `yolo5` service to establish a DB Connection.
+3. `yolo5` service shares a separate Docker network (`backend-network`) with the primary Mongo service which is the `mongo1`
+  a. In the command to run the container I've implemented a `wait and retry` mechanism so that it won't try to connect to the Mongo before it's full ready and initialized.
+  b. It also makes use of the Docker secrets to get the MongoDB password (`mongo_db_password`)
+4. `polybot` service shares yet another Docker network with the `yolo5` service (`frontend-network`)
+  a. I've implemented a `healthcheck` so that the container will "advertise" it's health status which is being used as part of the deployment process
 
-To ensure flexibility and avoid manual editing of the `docker-compose.yaml` file each time you build new version of your images,
-we'll specify the values that change frequently as environment variables for the Docker Compose project via a `.env` file.
+All the environment variables that are being used in the Docker Compose are taken from the `.env` file which gets generated automatically as part of the deployment process.
 
-[An `.env` file in Docker Compose](https://docs.docker.com/compose/environment-variables/set-environment-variables/) is a text file used to define environment variables that available when running `docker compose up`.
-
-Here's an example of how your `.env` file should look:
+Here's an example of how the `.env` file looks:
 
 ```text
 # .env file
@@ -170,7 +206,7 @@ YOLO5_IMG_NAME=yolo5:v123
 TELEGRAM_APP_URL=https://f176-2a06-c701-4cdc-a500-49d5-ae2b-1cd1-61d1.ngrok-free.app
 ```
 
-And here's how you use it in the compose file:
+Here's how you use it in the compose file:
 
 ```yaml
 # docker-compose.yaml
@@ -180,70 +216,48 @@ services:
     image: ${POLYBOT_IMG_NAME}
 ```
 
-That way you won't need to directly edit your `docker-compose.yaml` file each time you build a new version of your images.
+### AWS preparations
+- A `t3.medium` EC2 machine was created in `us-east-1` region in the AWS default VPC and default public subnet.
+- A security group was created (`talo-sg`) and attached to the machine. It exposes ports 80, 8080 for external communication, 22 for SSH and lastly ping
+- On the EC2 machine I've installed the following:
+  - AWS Cli - the cli is not configured so that my credentials will NOT be on the machine.
+  - Docker / Docker Compose
+  - Python / Pip
+  - Ngrok and then configured
+  - Supervisor and then configured
+- An S3 bucket (`talo-s3`) was created with a folder called `images`
+- An ECR repository (`talo-docker-images`) was created in `us-east-1` region into which all 3 docker images are pushed
+- An IAM Role (`talo-ec2-role`) with a policy (`talo-ec2-policy`) attached to it was created.
+  - The policy follows the `least privilege` principle and only grants the absolute necessary permissions i.e. to List, Put and Get from the S3 bucket only on the `images` folder, to receive authentication token from the ECR and only pull from the specific repo.
+  - The role is then attached to the EC2 machine
 
-Finally, deploy the compose project in a single `medium` Ubuntu EC2 instance with 20GB disk.
+### CI/CD
 
-#### Deployment notes
+The CI/CD is done automatically via GitHub Actions. The workflows (`service-deploy.yaml`, `project_auto_testing.yaml`) makes use of Repository Secrets for the AWS Access Key and Secret, the EC2 SSH private key as well as the Telegram Token and MongoDB password.
 
-- You can expose the polybot to Telegram servers using Ngrok, as done in the previous project (install and launch ngrok on the EC2 instance).
-- Don't configure your compose file to build the images. Instead, push the `yolo5` and `polybot` images to a public DockerHub or [ECR](https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-console.html) repo and use these images.
-- Attach an IAM role to your EC2 instance with the relevant permissions (E.g. read/write access to S3). Don't manage AWS credentials yourself, and never hard-code AWS credentials in the `docker-compose.yaml` file.
-- Don't hard-code your telegram token in the compose file, this is a sensitive data. [Read here](https://docs.docker.com/compose/use-secrets/) how to do it properly.
-- Build a robust code. Implement **retry** and **timeout** mechanism when needed, handle error properly. Test your app under failure - does the polybot keep work even if the yolo5 is down? Is yolo5 crashing when the mongo cluster is not initialize? etc...
-- Strive to create your Docker images as small as possible.
-- Try to automate the Mongo cluster initialization, so you don't need to manually connect to the container and initialize the cluster.
-- Use `snyk` to search (and potentially clean) for any `HIGH` and `CRITICAL` security vulnerabilities.
+Once the code is pushed to the `main` branch a GitHub Action kicks in and the following process begins:
+1. First runs the `service-deploy.yaml` workflow
+2. In the `setup` job it automatically fetches the EC2 Public IP (as it changes every time the machine starts again) and outputs it.
+3. In the `MongoInitBuild` job it builds the `mongo-init` image and pushes it to the pre-created ECR repository (`talo-docker-images`)
+4. In the `PolybotBuild` job it builds the `polibot` image and pushes it to the pre-created ECR repository (`talo-docker-images`)
+5. In the `Yolo5Build` job it builds the `yolo5` image and pushes it to the pre-created ECR repository (`talo-docker-images`)
+6. All the above 4 jobs run in parallel
+7. Once those are done successfully, the `Deploy` job kicks in and it does as follows:
+  a. It makes use of the `ec2_ip` from the `setup` job to SSH into the EC2 machine
+  b. It copies the `docker-compose.yaml` and `start-ngrok.sh`
+  c. It makes sure `jq` is installed
+  d. Changes to the `PolybotService` directory
+  e. Makes the `start-ngrok.sh` executable
+  f. Writes the Telegram Token and MongoDB password into their respective files (these are the files that are used in the docker-compose.yaml to create the Docker secrets)
+  g. Generates the `.env` file partially from variables and partly from hard-coded values. This is what the docker-compose.yaml file makes use of for the dynamic values
+  h. Refreshes the `supervisor` service and uses it to stop the (possibly) already running `ngrok` service
+  i. Stops all the containers and removes them with `docker compose down`
+  j. Cleans all the Docker volumes which were created
+  k. Logs in to ECR
+  l. Restarts all the containers in detached mode with `docker compose up -d`
+  m. Executes the `start-ngrok.sh` bash script which runs Ngrok via supervisor
+8. After the first one is done the second workflow (`project_auto_testing.yaml`) starts and runs the tests
 
-## Integrate a simple CI/CD pipeline using GitHub Actions
-
-CI/CD (Continuous integration and continuous deployment) is a methodology which automates the deployment process of software project.
-We'll spend fairly amount of time to discuss this topic. But for now we want to achieve a simple outcome:
-
-When you make changes to your code locally, commit, and push them, a new GitHub Actions **workflow** is automatically triggered.
-This workflow builds new versions of Docker images and deploys them to Docker Compose project in your EC2 instance.
-
-> [!NOTE]
-> A workflow is an automated process defined in a YAML file that helps automate tasks, such as building, testing, and deploying code, in a GitHub repository.
-
-No need to manually build images, no need to manually connect to EC2 instance, or launch the Docker Compose project - everything from code changes to deployment is seamlessly done by an automatic process.
-This is why it is called **continuous deployment**, because on every code change, a new version of the app is being deployed automatically.
-
-1. First, get yourself familiar with how GitHub Actions works: https://docs.github.com/en/actions/learn-github-actions/understanding-github-actions.
-2. The GitHub Actions workflow is already written for you and available under `.github/workflows/service-deploy.yaml`. Take a moment to review it, and customize it according to your specific requirements.
-
-   The workflow expects some secrets to be available:
-   - Go to your project repository on GitHub, navigate to **Settings** > **Secrets and variables** > **Actions**.
-   - Click on **New repository secret**.
-   - Define the following secret values:
-     - `DOCKERHUB_USERNAME` and `DOCKERHUB_PASSWORD` - Only if you use DockerHub to store images.
-     - `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` - Only if you use ECR to store images.
-     - `EC2_SSH_PRIVATE_KEY` - The private key value to connect to your EC2.
-     - `TELEGRAM_BOT_TOKEN` - The Telegram bot token.
-4. Make some changes to your bot code, then commit and push it. Notice how the **Polybot Service Deployment** workflow automatically kicked in. Once the workflow completes successfully, your new application version should be automatically built and deployed in your EC2 instance. Make sure the service is working properly and reflects the code changes you've made.
-
-## Submission
-
-Once the **Polybot Service Deployment** workflow is completed, the **Project auto-testing** workflow would be triggered automatically and test your project.
-
-So no further step should be taken to pass the automated testing :-)
-
-As always, if there are any failures, click on the failed job and **read the test logs carefully**. Fix your solution, commit and push again.
-
-**Note:** Your EC2 instances should be running while the automated test is performed. **Don't forget to turn off the machines when you're done**.
-
-
-## Good Luck
-
-
-[DevOpsTheHardWay]: https://github.com/alonitac/DevOpsTheHardWay
-[onboarding_tutorial]: https://github.com/alonitac/DevOpsTheHardWay/blob/main/tutorials/onboarding.md
-[autotest_badge]: ../../actions/workflows/project_auto_testing.yaml/badge.svg?event=push
-[autotest_workflow]: ../../actions/workflows/project_auto_testing.yaml/
-[fork_github]: https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo#forking-a-repository
-[clone_pycharm]: https://www.jetbrains.com/help/pycharm/set-up-a-git-repository.html#clone-repo
-[github_actions]: ../../actions
-
-[PolybotServicePython]: https://github.com/alonitac/ImageProcessingService
-[docker_project_street]: https://alonitac.github.io/DevOpsTheHardWay/img/docker_project_street.jpeg
-[docker_project_polysample]: https://alonitac.github.io/DevOpsTheHardWay/img/docker_project_polysample.jpg
+**NOTES:**
+1. I've resolved the automation of starting Ngrok via the GitHub Action by using supervisor which was pre-installed on the EC2 machine and configured to run the Ngrok as a background service so that it won't hold up the terminal.
+2. In the `start-ngrok.sh` bash script I've written a `wait-until` mechanism so that Ngrok won't start until the `polibot` service is `healthy` hence the `healthcheck` mentioned above.
