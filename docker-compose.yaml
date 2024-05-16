@@ -55,7 +55,6 @@ services:
     ports:
       - ${YOLO5_PORT}:${YOLO5_PORT}
     environment:
-      AWS_PROFILE:
       BUCKET_NAME:
       BUCKET_PREFIX:
     command: >
@@ -90,7 +89,6 @@ services:
     ports:
       - ${POLYBOT_PORT}:${POLYBOT_PORT}
     environment:
-      AWS_PROFILE:
       TELEGRAM_APP_URL:
       BUCKET_NAME:
       BUCKET_PREFIX:
