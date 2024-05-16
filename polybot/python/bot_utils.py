@@ -9,8 +9,8 @@ if aws_profile is not None and aws_profile == "dev":
     boto3.setup_default_session(profile_name=aws_profile)
 
 def upload_image_to_s3(bucket_name, key, image_path):
-    s3 = boto3.client('s3')
     try:
+        s3 = boto3.client('s3')
         with open(image_path, 'rb') as img:
             s3.put_object(Bucket=bucket_name, Key=key, Body=img)
     except FileNotFoundError as e:
@@ -25,6 +25,9 @@ def upload_image_to_s3(bucket_name, key, image_path):
     except OSError as e:
         logger.exception(f"Upload to {bucket_name}/{key} failed. An {type(e).__name__} has occurred.\n{str(e)}")
         return f"Upload to {bucket_name}/{key} failed. An {type(e).__name__} has occurred.\n{str(e)}", 500
+    except boto_exceptions.ProfileNotFound as e:
+        logger.exception(f"Upload to {bucket_name}/{key} failed. A ProfileNotFound has occurred.\n{str(e)}")
+        return f"Upload to {bucket_name}/{key} failed. A ProfileNotFound has occurred.\n{str(e)}", 500
     except boto_exceptions.ClientError as e:
         logger.exception(f"Upload to {bucket_name}/{key} failed. A ClientError has occurred.\n{str(e)}")
         return f"Upload to {bucket_name}/{key} failed. A ClientError has occurred.\n{str(e)}", 500
@@ -45,13 +48,15 @@ def upload_image_to_s3(bucket_name, key, image_path):
     return f"Upload to {bucket_name}/{key} succeeded.", 200
 
 def download_image_from_s3(bucket_name, key, image_path, images_prefix):
-    s3 = boto3.client('s3')
-
     if not os.path.exists(images_prefix):
         os.makedirs(images_prefix)
 
     try:
+        s3 = boto3.client('s3')
         response = s3.get_object(Bucket=bucket_name, Key=key)
+    except boto_exceptions.ProfileNotFound as e:
+        logger.exception(f"Download from {bucket_name}/{key} failed. A ProfileNotFound has occurred.\n{str(e)}")
+        return f"Download from {bucket_name}/{key} failed. A ProfileNotFound has occurred.\n{str(e)}", 500
     except boto_exceptions.ClientError as e:
         logger.exception(f"Download from {bucket_name}/{key} failed. A ClientError has occurred.\n{str(e)}")
         return f"Download from {bucket_name}/{key} failed. A ClientError has occurred.\n{str(e)}", 500

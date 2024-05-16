@@ -472,7 +472,6 @@ class ObjectDetectionBot(ImageProcessingBot):
                 if response[1] != 200:
                     raise Exception(f"{response[0]}\nPlease try again.")
             except Exception as e:
-                logger.exception(e)
                 self.handle_exception(e, chat_id)
                 return
 

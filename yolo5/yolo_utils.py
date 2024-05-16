@@ -33,8 +33,8 @@ def convert_objectid(data):
         return data
 
 def upload_image_to_s3(bucket_name, key, image_path):
-    s3 = boto3.client('s3')
     try:
+        s3 = boto3.client('s3')
         with image_path.open('rb') as img:
             s3.put_object(Bucket=bucket_name, Key=key, Body=img)
     except FileNotFoundError as e:
@@ -49,6 +49,9 @@ def upload_image_to_s3(bucket_name, key, image_path):
     except OSError as e:
         logger.exception(f"Upload to {bucket_name}/{key} failed. An {type(e).__name__} has occurred.\n{str(e)}")
         return f"Upload to {bucket_name}/{key} failed. An {type(e).__name__} has occurred.\n{str(e)}", 500
+    except boto_exceptions.ProfileNotFound as e:
+        logger.exception(f"Upload to {bucket_name}/{key} failed. A ProfileNotFound has occurred.\n{str(e)}")
+        return f"Upload to {bucket_name}/{key} failed. A ProfileNotFound has occurred.\n{str(e)}", 500
     except boto_exceptions.ClientError as e:
         logger.exception(f"Upload to {bucket_name}/{key} failed. A ClientError has occurred.\n{str(e)}")
         return f"Upload to {bucket_name}/{key} failed. A ClientError has occurred.\n{str(e)}", 500
@@ -69,13 +72,15 @@ def upload_image_to_s3(bucket_name, key, image_path):
     return f"Upload to {bucket_name}/{key} succeeded.", 200
 
 def download_image_from_s3(bucket_name, key, image_path):
-    s3 = boto3.client('s3')
-
     if not os.path.exists(images_prefix):
         os.makedirs(images_prefix)
 
     try:
+        s3 = boto3.client('s3')
         response = s3.get_object(Bucket=bucket_name, Key=key)
+    except boto_exceptions.ProfileNotFound as e:
+        logger.exception(f"Download from {bucket_name}/{key} failed. A ProfileNotFound has occurred.\n{str(e)}")
+        return f"Download from {bucket_name}/{key} failed. A ProfileNotFound has occurred.\n{str(e)}", 500
     except boto_exceptions.ClientError as e:
         logger.exception(f"Download from {bucket_name}/{key} failed. A ClientError has occurred.\n{str(e)}")
         return f"Download from {bucket_name}/{key} failed. A ClientError has occurred.\n{str(e)}", 500
@@ -122,7 +127,7 @@ def identify(img_name, prediction_id):
     response = download_image_from_s3(images_bucket, original_img_path, original_img_path)
 
     if response[1] != 200:
-        logger.exception(f'Prediction: {prediction_id}/{img_name} failed.\n\n{response[0]}')
+        logger.exception(f'Prediction: {prediction_id}/{img_name} failed.')
         return f'Prediction: {prediction_id}/{img_name} failed.\n\n{response[0]}', response[1]
 
     # Predicts the objects in the image
@@ -145,7 +150,7 @@ def identify(img_name, prediction_id):
     response = upload_image_to_s3(images_bucket, original_img_path, predicted_img_path)
 
     if response[1] != 200:
-        logger.exception(f'Prediction: {prediction_id}/{img_name} failed.\n\n{response[0]}')
+        logger.exception(f'Prediction: {prediction_id}/{img_name} failed.')
         return f'Prediction: {prediction_id}/{img_name} failed.\n\n{response[0]}', response[1]
 
     # Parse prediction labels and create a summary
