@@ -58,7 +58,7 @@ class BotFactory:
         time.sleep(0.5)
 
         # Set the webhook URL
-        self.tgbot.set_webhook(url=f'{telegram_chat_url}/{token}/', timeout=60)
+        self.tgbot.set_webhook(url=f'{telegram_chat_url}/{token}/', timeout=90)
 
         # Initiate the exception handler and pass it the bot object to handle messages
         self.tgbot.exception_handler = ExceptionHandler(self.tgbot)
@@ -462,7 +462,7 @@ class ObjectDetectionBot(ImageProcessingBot):
                 return
 
             # Let the user that something is happening
-            self.send_text(chat_id, "Processing...")
+            self.send_text(chat_id, "Processing, please wait...")
 
             image_name = os.path.basename(image_path)
 

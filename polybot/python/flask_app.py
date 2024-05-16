@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from threading import Thread
 import os
 from get_docker_secret import get_docker_secret
 from bot import BotFactory
@@ -13,6 +14,15 @@ if TELEGRAM_TOKEN is None:
 TELEGRAM_APP_URL = os.environ['TELEGRAM_APP_URL']
 
 bot_factory = BotFactory(TELEGRAM_TOKEN, TELEGRAM_APP_URL)
+
+class Compute(Thread):
+    def __init__(self, bot, msg):
+        Thread.__init__(self)
+        self.bot = bot
+        self.msg = msg
+
+    def run(self):
+        self.bot.handle_message(self.msg)
 
 @app.route('/', methods=['GET'])
 def index():
@@ -33,7 +43,9 @@ def webhook():
         return 'No message', 400
 
     bot = bot_factory.get_bot(msg)
-    bot.handle_message(msg)
+
+    msg_thread = Compute(bot, msg)
+    msg_thread.start()
     return 'Ok', 200
 
 if __name__ == "__main__":
